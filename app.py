@@ -20,14 +20,16 @@ if uploaded_file is not None:
 
     conn=sqlite3.connect("business_data.db")
     df.to_sql("business_data", conn, index=False, if_exists="replace")   
-
+    conn.close()
     numeric_columns = df.select_dtypes(include="number").columns.tolist()
     categorical_columns = df.select_dtypes(include=["object"]).columns.tolist()
 
     st.subheader("Data Preview")
+    st.divider()
     st.dataframe(df.head())
 
     st.subheader("Dataset Overview")
+    st.divider()
 
     col1, col2 = st.columns(2)
 
@@ -38,16 +40,19 @@ if uploaded_file is not None:
         st.metric("Columns", df.shape[1])
 
     st.subheader("Column Names")
+    st.divider()
     st.write(list(df.columns))
 
     st.subheader("Missing Values")
+    st.divider()
     st.write(df.isnull().sum())
 
     st.subheader("Basic Statistics")
+    st.divider()
     st.write(df.describe())
 
     st.subheader("Business KPI Summary")
-
+    st.divider()
     if len(numeric_columns) > 0:
         selected_metric = st.selectbox(
             "Choose a numeric column to analyze",
@@ -75,7 +80,7 @@ if uploaded_file is not None:
             st.metric("Highest Value", round(max_value, 2))
 
         st.subheader("Data Visualization")
-
+        st.divider()
         chart_metric = st.selectbox(
             "Choose a numeric column to chart",
             numeric_columns,
@@ -105,7 +110,7 @@ if uploaded_file is not None:
             st.info("No category columns found for comparison charts.")
 
         st.subheader("Automated Business Insights")
-
+        st.divider()
         insight_metric = st.selectbox(
             "Choose a metric for insights",
             numeric_columns,
@@ -159,7 +164,7 @@ if uploaded_file is not None:
             )
 
         st.subheader("Ask a Business Question")
-
+        st.divider()
         user_question = st.text_input(
             "Ask a question about the dataset",
             placeholder="Example: What is the total Sales?"
@@ -207,7 +212,8 @@ if uploaded_file is not None:
                 )
 
         st.subheader("Run a SQL Query")
-        st.write("The uploaded CSV is stores as a SQl table named business_data.")
+        st.divider()
+        st.write("The uploaded CSV is stored as a SQl table named business_data.")
         default_query = "SELECT * FROM business_data LIMIT 5;"
         user_query = st.text_area(
             "Enter a SQL query ",
@@ -220,6 +226,53 @@ if uploaded_file is not None:
                 st.dataframe(query_result)
             except Exception as e:
                 st.error(f"SQL error: {e}")
+        
+        st.subheader("AI-Style Business Recommendation")
+        st.divider()
+        if st.button("Generate Business Recommendation"):
+            recommendation_metric = insight_metric
+
+            summary_total = df[recommendation_metric].sum()
+            summary_average = df[recommendation_metric].mean()
+
+            if len(categorical_columns) > 0:
+                recommendation_category = categorical_columns[0]
+
+                category_performance = (
+                    df.groupby(recommendation_category)[recommendation_metric]
+                    .sum()
+                    .sort_values(ascending=False)
+                )
+
+                top_category_name = category_performance.index[0]
+                top_category_value = category_performance.iloc[0]
+
+                lowest_category_name = category_performance.index[-1]
+                lowest_category_value = category_performance.iloc[-1]
+
+                recommendation_text = f"""
+                Based on the uploaded dataset, total {recommendation_metric} is {round(summary_total, 2)} and average {recommendation_metric} is {round(summary_average, 2)}.
+
+                The strongest performing {recommendation_category} is {top_category_name}, with {round(top_category_value, 2)} in total {recommendation_metric}.
+
+                The lowest performing {recommendation_category} is {lowest_category_name}, with {round(lowest_category_value, 2)} in total {recommendation_metric}.
+
+                Recommendation:
+                The business should study what is working in {top_category_name} and compare it against {lowest_category_name}. This can help identify gaps in demand, pricing, marketing, product mix, or operations.
+
+                Next steps:
+                1. Review top-performing categories.
+                2. Investigate low-performing categories.
+                3. Compare Sales, Profit, and Quantity.
+                4. Use the findings to improve pricing, marketing, and product decisions.
+                """
+
+                st.write(recommendation_text)
+
+            else:
+                st.write(
+                    f"Total {recommendation_metric} is {round(summary_total, 2)} and average {recommendation_metric} is {round(summary_average, 2)}. Add a category column to generate stronger business recommendations."
+                )
     else:
         st.warning("No numeric columns found for KPI analysis.")
 
